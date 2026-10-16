@@ -1,5 +1,39 @@
 # memzip
 
+A zero-dependency, user-space **compressed in-memory cache** for Node.js. Values are kept in RAM in zstd-compressed form and decompressed transparently on read, so the same physical memory holds several times more data. Ships with a CLI, an HTTP API and an offline Canvas dashboard.
+
+**Not zram.** Real zram is a Linux kernel facility (kernel module + block device). A Windows user-space process cannot do that, and writing a driver is out of scope. memzip compresses data *inside this process* and decompresses only at the moment of a read — `store.set(key, value)` in, `store.get(key)` out, the caller never sees the compression.
+
+**Benchmark** — 24.6 MB of real JSONL on Windows 10 / Node v24.14.1 (`node:zlib` native zstd):
+
+| codec | compressed | ratio | compress MB/s | decompress MB/s |
+|---|---|---|---|---|
+| zstd L1 | 5.09 MB | 4.84x | 385 | 871 |
+| **zstd L3** | **4.13 MB** | **5.96x** | **420** | **745** |
+| zstd L9 | 3.28 MB | 7.51x | 107 | 773 |
+| zstd L19 | 2.74 MB | 9.00x | 3 | 549 |
+| gzip L6 | 5.23 MB | 4.71x | 73 | 455 |
+| brotli L6 | 3.18 MB | 7.73x | 72 | 660 |
+
+zstd L3 is the default: near-identical encode cost to L1 for 1.12 more points of ratio, and 4x–140x faster than L9/L19 (L19 needs 7.8 s on 24.6 MB — unusable on a write path). Decompression speed matters most, since reads dominate.
+
+**Quick start** (Node ≥ 22.15, no `npm install`):
+
+```
+node bin/memzip.mjs serve --open      # dashboard on http://127.0.0.1:5398
+node bin/memzip.mjs demo --mb 24      # logical vs physical vs ratio
+node bin/memzip.mjs bench --mb 16     # full codec matrix
+node test/smoke.mjs                   # 24 assertions
+```
+
+Three details make it hold up in practice: a compress threshold (values under 256 B are stored raw — zstd's empty-frame header alone is 9 bytes), a ratio guard (if compression did not shrink the value it is stored raw, never inflated), and an LRU budget measured in **physical** bytes, so the store can never exceed its memory cap.
+
+Lossless roundtrip is asserted end to end: 5 MB of mixed binary in, identical sha256 and `Buffer.compare === 0` out. `test/rss-probe.mjs` is a controlled A/B memory probe proving the saving is real — uncompressed Δ24.07 MB vs compressed Δ4.25 MB of `arrayBuffers`, a ratio of 0.176 ≈ 1/5.741, matching `stats.physicalBytes`.
+
+Limits: no persistence, no multi-process sharing, no transactions. Data lives in this one process and is gone when it exits. 中文说明见下。
+
+---
+
 **把数据压缩后常驻内存的本地缓存服务**——让同一块 RAM 装下更多东西，并带一个实时面板盯着压缩比、省下多少、吞吐与命中率。
 
 > **结论先行**：这不是 zram。真正的 zram 是 Linux 内核级压缩内存（内核模块 + 块设备），Windows 用户态做不到，写驱动不在本项目范围内。
