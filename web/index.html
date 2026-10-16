@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>memzip — 压缩内存面板</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">memzip</span>
+    <span class="tagline">用户态压缩内存缓存服务</span>
+  </div>
+  <div class="status">
+    <span id="status-dot" class="dot"></span>
+    <span id="status-text">连接中…</span>
+    <span id="status-config" class="muted"></span>
+  </div>
+</header>
+
+<main>
+  <section class="cards">
+    <div class="card accent">
+      <div class="card-label">压缩比</div>
+      <div class="card-value" id="v-ratio">—</div>
+      <div class="card-sub" id="s-ratio">逻辑 ÷ 物理</div>
+    </div>
+    <div class="card">
+      <div class="card-label">省下</div>
+      <div class="card-value" id="v-saved">—</div>
+      <div class="card-sub" id="s-saved">逻辑 − 物理</div>
+    </div>
+    <div class="card">
+      <div class="card-label">逻辑占用</div>
+      <div class="card-value" id="v-logical">—</div>
+      <div class="card-sub" id="s-logical">未压缩字节</div>
+    </div>
+    <div class="card">
+      <div class="card-label">物理占用</div>
+      <div class="card-value" id="v-physical">—</div>
+      <div class="card-sub" id="s-physical">压缩后字节 / 预算</div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="panel wide">
+      <div class="panel-head">
+        <h2>物理占用随时间</h2>
+        <span class="muted" id="chart-note">每秒采样一次，保留最近 180 个点</span>
+      </div>
+      <canvas id="chart" height="220"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>运行指标</h2></div>
+      <table class="kv">
+        <tbody id="metrics-body">
+          <tr><th>命中率</th><td id="m-hitrate">—</td></tr>
+          <tr><th>命中 / 未命中</th><td id="m-hits">—</td></tr>
+          <tr><th>条目数</th><td id="m-entries">—</td></tr>
+          <tr><th>驱逐 / 过期</th><td id="m-evict">—</td></tr>
+          <tr><th>get 延迟</th><td id="m-latency">—</td></tr>
+          <tr><th>压缩吞吐</th><td id="m-cput">—</td></tr>
+          <tr><th>解压吞吐</th><td id="m-dput">—</td></tr>
+          <tr><th>运行时长</th><td id="m-uptime">—</td></tr>
+          <tr><th>当前编解码</th><td id="m-codec">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>写入数据</h2>
+        <span class="muted">POST /api/kv</span>
+      </div>
+      <label class="field">
+        <span>key</span>
+        <input id="put-key" type="text" value="panel-demo" spellcheck="false">
+      </label>
+      <label class="field">
+        <span>value（文本）</span>
+        <textarea id="put-value" rows="5" spellcheck="false">memzip 把这段文本压缩后常驻内存，读取时透明解压。</textarea>
+      </label>
+      <div class="row">
+        <button id="btn-put" class="primary">写入</button>
+        <button id="btn-gen">生成</button>
+        <input id="gen-mb" type="number" value="2" min="1" max="64" step="1">
+        <span class="muted">MB 测试数据</span>
+        <button id="btn-flush" class="danger">清空缓存</button>
+      </div>
+      <div class="log" id="put-log">就绪</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>编解码对比</h2>
+        <span class="muted">POST /api/bench</span>
+      </div>
+      <div class="row">
+        <button id="btn-bench" class="primary">跑基准</button>
+        <input id="bench-mb" type="number" value="8" min="1" max="64" step="1">
+        <span class="muted">MB 语料</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data" id="bench-table">
+          <thead>
+            <tr><th>编解码</th><th>压缩后</th><th>压缩比</th><th>压缩 MB/s</th><th>解压 MB/s</th></tr>
+          </thead>
+          <tbody id="bench-body">
+            <tr><td colspan="5" class="muted">还没跑基准</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="log" id="bench-log">当前选用的 codec 会在表里高亮。</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>键浏览器</h2>
+      <span class="muted" id="keys-note">GET /api/keys</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>key</th><th>逻辑</th><th>物理</th><th>单条压缩比</th><th>codec</th><th>操作</th></tr>
+        </thead>
+        <tbody id="keys-body">
+          <tr><td colspan="6" class="muted">暂无数据</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="row">
+      <button id="btn-more">加载更多</button>
+      <span class="muted" id="keys-total"></span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span class="muted">进程内压缩，纯用户态；数据离开进程前必然已解压。零依赖、零 CDN。</span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

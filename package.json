@@ -1,0 +1,42 @@
+{
+  "name": "memzip",
+  "version": "0.1.0",
+  "description": "用户态压缩内存缓存服务：数据以压缩形态常驻内存，带实时面板（压缩比 / 省下多少 / 吞吐 / 命中率）",
+  "type": "module",
+  "license": "MIT",
+  "private": false,
+  "bin": {
+    "memzip": "./bin/memzip.mjs"
+  },
+  "main": "./src/store.mjs",
+  "exports": {
+    ".": "./src/store.mjs",
+    "./codec": "./src/codec.mjs",
+    "./server": "./src/server.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "web",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node bin/memzip.mjs serve",
+    "demo": "node bin/memzip.mjs demo --mb 24",
+    "bench": "node bin/memzip.mjs bench --mb 16",
+    "test": "node test/smoke.mjs",
+    "rss": "node --expose-gc test/rss-probe.mjs --mb 24"
+  },
+  "engines": {
+    "node": ">=22.15"
+  },
+  "dependencies": {},
+  "keywords": [
+    "zstd",
+    "compression",
+    "cache",
+    "memory",
+    "in-memory"
+  ]
+}
